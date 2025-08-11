@@ -4,8 +4,19 @@ export const onRequestPost: PagesFunction = async (context) => {
   const key = env.GOOGLE_CSE_KEY
   const cx = env.GOOGLE_CSE_ID
   const tag = env.AMAZON_ASSOCIATE_TAG
+  // Enrich selected profile for real interests
+  let enriched:string[] = []
+  if (picked?.url) {
+    try {
+      const enr = await fetch(new URL('/api/enrich-profile', context.request.url).toString(), {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: picked.url })
+      })
+      const ej = await enr.json()
+      enriched = ej.signals || []
+    } catch {}
+  }
 
-  const profileTokens = [identity?.fullName, identity?.location, identity?.birthYear, identity?.employer, identity?.school, identity?.hints, picked?.title, picked?.snippet]
+  const profileTokens = [identity?.fullName, identity?.location, identity?.birthYear, identity?.employer, identity?.school, identity?.hints, picked?.title, picked?.snippet, enriched.join(' ')]
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
