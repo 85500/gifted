@@ -12,14 +12,15 @@ export const onRequestPost: PagesFunction = async (context) => {
       cycling: /(cycling|strava|peloton|road bike|mtb)/,
       running: /(runner|marathon|strava|5k|10k)/,
       hiking: /(hiking|trail|backpacking|thru-hike)/,
-      gaming: /(steam|xbox|playstation|nintendo|twitch)/,
+      gaming: /(steam|xbox|playstation|nintendo|twitch|zelda)/,
       zelda: /(zelda|hyrule)/,
       starwars: /(star wars|skywalker|jedi)/,
       diy: /(3d print|solder|maker|arduino|raspberry)/,
       guitar: /(guitar|fender|gibson|strat)/,
       vinyl: /(vinyl|turntable|record)/,
       skincare: /(skincare|retinol|serum)/,
-      plants: /(monstera|philodendron|succulent|houseplant)/
+      plants: /(monstera|philodendron|succulent|houseplant)/,
+      running_shoes: /(nike|adidas|brooks|hokka|asics) (run|shoe)/
     }
     const hits = Object.entries(detectors).filter(([k,re])=> re.test(text)).map(([k])=>k)
     const imgMatch = html.match(/property=["']og:image["'][^>]+content=["']([^"']+)/i) || html.match(/name=["']twitter:image["'][^>]+content=["']([^"']+)/i)

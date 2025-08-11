@@ -2,20 +2,24 @@ import { useMemo, useState } from 'react'
 import IdentityForm, { IdentityQuery } from './components/IdentityForm'
 import ProfilePicker from './components/ProfilePicker'
 import OccasionForm, { OccasionInput } from './components/OccasionForm'
+import PersonalizeForm, { Prefs } from './components/PersonalizeForm'
 import Loading from './components/Loading'
 
 export default function App(){
-  const [stage, setStage] = useState<'identity'|'choose'|'occasion'|'results'>('identity')
+  const [stage, setStage] = useState<'identity'|'choose'|'occasion'|'personalize'|'results'>('identity')
   const [identity, setIdentity] = useState<IdentityQuery|null>(null)
   const [hits, setHits] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [picked, setPicked] = useState<any|null>(null)
+  const [occasion, setOccasion] = useState<OccasionInput|null>(null)
+  const [prefs, setPrefs] = useState<Prefs|null>(null)
   const [items, setItems] = useState<any[]>([])
 
   const title = useMemo(() => ({
     identity: 'Who is the gift for?',
     choose: 'Confirm the correct person',
-    occasion: 'Occasion, budget & deadline',
+    occasion: 'Occasion & constraints',
+    personalize: 'Personalize (likes / no-gos)',
     results: 'Perfect gifts for them'
   }[stage]), [stage])
 
@@ -24,12 +28,11 @@ export default function App(){
     const res = await fetch('/api/search-profiles', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(q)})
     const data = await res.json(); setHits(data.hits || []); setLoading(false)
   }
-
   function pick(i:number){ const sel = hits[i]; setPicked(sel); setStage('occasion') }
-
-  async function generate(o:OccasionInput){
-    setStage('results'); setLoading(true)
-    const res = await fetch('/api/recommend', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({identity, picked, occasion:o})})
+  function nextPersonalize(o:OccasionInput){ setOccasion(o); setStage('personalize') }
+  async function generate(p:Prefs){
+    setPrefs(p); setStage('results'); setLoading(true)
+    const res = await fetch('/api/recommend', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({identity, picked, occasion, prefs:p})})
     const data = await res.json(); setItems(data.items || []); setLoading(false)
   }
 
@@ -41,7 +44,8 @@ export default function App(){
       <h2 className="text-xl font-semibold">{title}</h2>
       {stage==='identity' && <IdentityForm onSearch={searchIdentity} />}
       {stage==='choose' && <ProfilePicker hits={hits} loading={loading} onPick={pick} />}
-      {stage==='occasion' && picked && <OccasionForm onSubmit={generate} />}
+      {stage==='occasion' && picked && <OccasionForm onSubmit={nextPersonalize} />}
+      {stage==='personalize' && <PersonalizeForm onSubmit={generate} />}
       {stage==='results' && (loading ? <Loading label="Curating the perfect list"/> : (
         items?.length ? (<div className="space-y-6">
           <div className="text-slate-300">Curated for <span className="font-semibold">{picked?.title || identity?.fullName}</span></div>
@@ -58,7 +62,7 @@ export default function App(){
               </div>
             </a>))}
           </div>
-          <button onClick={()=>setStage('occasion')} className="rounded-2xl bg-indigo-500 hover:bg-indigo-600 px-5 py-2 font-semibold">Tweak inputs & refine</button>
+          <button onClick={()=>setStage('personalize')} className="rounded-2xl bg-indigo-500 hover:bg-indigo-600 px-5 py-2 font-semibold">Tweak & regenerate</button>
         </div>) : (<div className="text-slate-400">No items found. Try widening budget or changing occasion.</div>)
       ))}
     </main>

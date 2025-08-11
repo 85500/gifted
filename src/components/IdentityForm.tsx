@@ -20,7 +20,7 @@ export default function IdentityForm({onSearch}:{onSearch:(q:IdentityQuery)=>voi
     </div>
     <div><label className="block text-sm text-slate-300">Other hints (usernames, favorite things)</label>
       <input value={form.hints} onChange={e=>setForm({...form,hints:e.target.value})}
-        className="w-full rounded-xl bg-slate-800 px-4 py-2" placeholder="optional"/></div>
+        className="w-full rounded-xl bg-slate-800 px-4 py-2" placeholder="@handle, GitHub user, hobbies, favorite brands"/></div>
     <div><label className="block text-sm text-slate-300">Direct profile URL (optional)</label>
       <input value={form.profileUrl} onChange={e=>setForm({...form,profileUrl:e.target.value})}
         className="w-full rounded-xl bg-slate-800 px-4 py-2" placeholder="https://linkedin.com/in/..."/></div>

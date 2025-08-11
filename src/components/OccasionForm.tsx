@@ -21,5 +21,5 @@ export default function OccasionForm({onSubmit}:{onSubmit:(o:OccasionInput)=>voi
       <div><label className="block text-sm text-slate-300">Budget max</label>
         <input type="number" onChange={e=>setO({...o,budgetMax:Number(e.target.value)})} className="w-full rounded-xl bg-slate-800 px-4 py-2" placeholder="100"/></div>
     </div>
-    <button className="rounded-2xl bg-indigo-500 hover:bg-indigo-600 px-5 py-2 font-semibold">Generate perfect gift list</button>
+    <button className="rounded-2xl bg-indigo-500 hover:bg-indigo-600 px-5 py-2 font-semibold">Next: personalize</button>
   </form>)}

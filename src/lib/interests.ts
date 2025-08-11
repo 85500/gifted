@@ -1,16 +1,16 @@
 export type InterestKey = keyof typeof INTEREST_CLUSTERS
 export const INTEREST_CLUSTERS = {
   tech:["software","engineer","programmer","ai","ml","data","linux","arduino","raspberry pi","gadget","ipad","iphone","android","mechanical keyboard"],
-  gamer:["steam","xbox","playstation","nintendo","esports","twitch","fps","rpg","mmorpg"],
+  gamer:["steam","xbox","playstation","nintendo","esports","twitch","fps","rpg","mmorpg","zelda"],
   outdoors:["hiking","camping","climbing","trail","backpacking","national park","kayak","fishing"],
-  homechef:["chef","cooking","kitchen","sous vide","espresso","barista","baking","wine","beer","foodie"],
-  maker:["maker","3d print","cnc","woodworking","craft","sewing","cosplay"],
+  homechef:["chef","cooking","kitchen","sous vide","espresso","barista","baking","wine","beer","foodie","aeropress","chemex","v60"],
+  maker:["maker","3d print","cnc","woodworking","craft","sewing","cosplay","arduino","raspberry pi"],
   fitness:["fitness","gym","running","cycling","peloton","yoga","crossfit","marathon"],
-  bookworm:["goodreads","author","novel","book club","sci-fi","fantasy","nonfiction","history"],
+  bookworm:["goodreads","author","novel","book club","sci-fi","fantasy","nonfiction","history","kindle"],
   music:["spotify","apple music","band","guitar","piano","dj","vinyl","concert"],
-  fashion:["ootd","fashion","sneaker","streetwear","makeup","skincare","hairstyle"],
-  cozyhome:["home decor","plants","gardening","indoor","apartment","aroma","candle"],
-  parent:["mom","dad","parent","toddler","newborn","pregnant","kindergarten"],
+  fashion:["ootd","fashion","sneaker","streetwear","makeup","skincare","hairstyle","watch"],
+  cozyhome:["home decor","plants","gardening","indoor","apartment","aroma","candle","frame","blanket"],
+  parent:["mom","dad","parent","toddler","newborn","pregnant","kindergarten","baby"],
   pet:["dog","cat","pet","rescue","vet","puppy","kitten","aquarium"]
 } as const
 export const OCCASION_BOOST: Record<string, Partial<Record<keyof typeof INTEREST_CLUSTERS, number>>> = {

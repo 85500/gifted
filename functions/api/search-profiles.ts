@@ -3,6 +3,7 @@ export const onRequestPost: PagesFunction = async (context) => {
   const { fullName, location, birthYear, employer, school, hints, profileUrl } = await context.request.json()
   const key = env.GOOGLE_CSE_KEY, cx = env.GOOGLE_CSE_ID
 
+  // If direct URL provided, verify
   if (profileUrl) {
     try {
       const ok = await fetch(profileUrl, { method: 'HEAD' })
@@ -12,19 +13,37 @@ export const onRequestPost: PagesFunction = async (context) => {
     } catch {}
   }
 
-  const SITES_PRIMARY = ['linkedin.com/in','github.com','x.com','twitter.com','instagram.com','threads.net']
-  const SITES_SECONDARY = ['facebook.com','goodreads.com','steamcommunity.com','spotify.com','youtube.com','pinterest.com']
+  const nameParts = fullName.split(/\s+/).filter(Boolean)
+  const first = nameParts[0] || ''
+  const last = nameParts[nameParts.length-1] || ''
+  const middle = nameParts.length>2 ? nameParts.slice(1,-1).join(' ') : ''
+  const nicknames = [first, first.replace(/(.*)ey$/,'$1ie'), first.replace(/(.*)y$/,'$1ie')].filter((v,i,a)=>v && a.indexOf(v)===i)
 
-  const quoted = `"${fullName}"`
-  const disambig = [location, birthYear, employer, school, hints].filter(Boolean).join(' ')
+  // Extract @handles
+  const handle = (hints||'').match(/@([a-z0-9._]+)/i)?.[1]
+  const handleHosts = ['x.com','twitter.com','instagram.com','threads.net','github.com']
+  const guessedUrls = handle ? handleHosts.map(h=>`https://${h}/${handle}`) : []
+
+  const SITES_PRIMARY = ['linkedin.com/in','github.com','x.com','twitter.com','instagram.com','threads.net']
+  const SITES_SECONDARY = ['facebook.com','goodreads.com','steamcommunity.com','spotify.com','youtube.com','pinterest.com','about.me']
+
+  const quoted = `\"${fullName}\"`
+  const disambig = [location, birthYear, employer, school].filter(Boolean).join(' ')
 
   const queries = [
     `${quoted} (${SITES_PRIMARY.map(d=>`site:${d}`).join(' OR ')}) ${disambig}`,
     `${quoted} intitle:${(employer||school||'profile')} (${SITES_PRIMARY.map(d=>`site:${d}`).join(' OR ')}) ${location||''}`,
+    `${first} ${last} (${nicknames.join(' OR ')}) (${SITES_PRIMARY.map(d=>`site:${d}`).join(' OR ')}) ${disambig}`,
     `${quoted} (${SITES_SECONDARY.map(d=>`site:${d}`).join(' OR ')}) ${disambig}`
   ]
 
   const results:any[] = []
+
+  // Try guessed handle URLs first
+  for (const u of guessedUrls){
+    try { const r = await fetch(u, { method:'HEAD' }); if (r.status<400) results.push({ title: `${first} ${last} (handle)`, url: u, site: new URL(u).hostname.replace('www.',''), snippet: 'From handle', image: undefined }) } catch {}
+  }
+
   for (const q of queries){
     const url = new URL('https://www.googleapis.com/customsearch/v1')
     url.searchParams.set('key', key); url.searchParams.set('cx', cx); url.searchParams.set('q', q); url.searchParams.set('num','10')
@@ -35,10 +54,16 @@ export const onRequestPost: PagesFunction = async (context) => {
     }
   }
 
-  const priRank=(host:string)=> host.includes('linkedin.com')?3 : host.includes('github.com')?2.5 : (host.includes('x.com')||host.includes('twitter.com')||host.includes('instagram.com'))?2 : 1
-  const tokens = [fullName, location, birthYear, employer, school, hints].filter(Boolean).join(' ').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
-
-  function scoreRow(r:any){ const text = `${r.title} ${r.snippet}`.toLowerCase(); let s=0; for (const t of tokens) if (text.includes(t)) s+=1; s+=priRank(r.site); return Math.min(1, s/10) }
+  const tokens = [fullName, location, birthYear, employer, school].filter(Boolean).join(' ').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+  function priRank(host:string){ if (host.includes('linkedin.com')) return 3; if (host.includes('github.com')) return 2.5; if (host.includes('x.com')||host.includes('twitter.com')||host.includes('instagram.com')) return 2; return 1 }
+  function scoreRow(r:any){
+    const text = `${r.title} ${r.snippet}`.toLowerCase()
+    let s = 0
+    for (const t of tokens) if (text.includes(t)) s += 1
+    if (location && text.includes((location||'').toLowerCase())) s += 1.5
+    s += priRank(r.site)
+    return Math.min(1, s/10)
+  }
 
   const dedup = new Map<string, any>()
   for (const r of results){ const k = r.url.split('?')[0]; if (!dedup.has(k)) dedup.set(k, r) }
