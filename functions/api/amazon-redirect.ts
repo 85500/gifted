@@ -5,11 +5,7 @@ export const onRequestGet: PagesFunction = async (context) => {
   if (!target) return new Response('Missing url', { status: 400 })
   try {
     const u = new URL(target)
-    if (u.hostname.includes('amazon.')){
-      u.searchParams.set('tag', env.AMAZON_ASSOCIATE_TAG)
-    }
+    if (u.hostname.includes('amazon.')){ u.searchParams.set('tag', env.AMAZON_ASSOCIATE_TAG) }
     return Response.redirect(u.toString(), 302)
-  } catch (e) {
-    return new Response('Bad url', { status: 400 })
-  }
+  } catch { return new Response('Bad url', { status: 400 }) }
 }
