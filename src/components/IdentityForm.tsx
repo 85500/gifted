@@ -7,6 +7,7 @@ export type IdentityQuery = {
   employer?: string
   school?: string
   hints?: string
+  profileUrl?: string
 }
 
 export default function IdentityForm({onSearch}:{onSearch:(q:IdentityQuery)=>void}){
@@ -36,6 +37,11 @@ export default function IdentityForm({onSearch}:{onSearch:(q:IdentityQuery)=>voi
         <label className="block text-sm text-slate-300">Other hints (usernames, favorite things)</label>
         <input value={form.hints} onChange={e=>setForm({...form, hints:e.target.value})} className="w-full rounded-xl bg-slate-800 px-4 py-2" placeholder="optional" />
       </div>
+      <div>
+        <label className="block text-sm text-slate-300">Direct profile URL (optional)</label>
+        <input value={form.profileUrl||''} onChange={e=>setForm({...form, profileUrl:e.target.value})}
+          className="w-full rounded-xl bg-slate-800 px-4 py-2" placeholder="https://linkedin.com/in/..." />
+</div>
       <button type="submit" className="rounded-2xl bg-indigo-500 hover:bg-indigo-600 px-5 py-2 font-semibold">Find the right person</button>
     </form>
   )
