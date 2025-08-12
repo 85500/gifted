@@ -1,75 +1,123 @@
-export const onRequestPost: PagesFunction = async (context) => {
-  const env = context.env as any
-  const { fullName, location, birthYear, employer, school, hints, profileUrl } = await context.request.json()
-  const key = env.GOOGLE_CSE_KEY, cx = env.GOOGLE_CSE_ID
+/**
+ * GET /api/search-profiles?name=...&location=...&birthYear=...&url=...
+ * Uses Brave Search API if BRAVE_SEARCH_KEY is set; otherwise falls back to Google Custom Search (GOOGLE_CSE_KEY & GOOGLE_CSE_ID).
+ * If a direct profile URL is provided, it is returned as the first candidate.
+ */
+import type { CandidateProfile } from '../../src/types'
 
-  // If direct URL provided, verify
-  if (profileUrl) {
-    try {
-      const ok = await fetch(profileUrl, { method: 'HEAD' })
-      if (ok.status < 400) {
-        return json({ hits: [{ title: fullName, url: profileUrl, site: new URL(profileUrl).hostname.replace('www.',''), snippet: 'Provided by user', image: undefined, score: 1 }] })
+export const onRequestGet: PagesFunction<{
+  BRAVE_SEARCH_KEY?: string,
+  GOOGLE_CSE_KEY?: string,
+  GOOGLE_CSE_ID?: string
+}> = async ({ request, env }) => {
+  const { searchParams } = new URL(request.url)
+  const name = (searchParams.get('name') || '').trim()
+  const location = (searchParams.get('location') || '').trim()
+  const birthYear = (searchParams.get('birthYear') || '').trim()
+  const directUrl = (searchParams.get('url') || '').trim()
+
+  if (!name && !directUrl) {
+    return new Response(JSON.stringify([]), { headers: { 'content-type': 'application/json' } })
+  }
+
+  const candidates: CandidateProfile[] = []
+
+  if (directUrl) {
+    candidates.push({
+      id: 'direct:' + directUrl,
+      name,
+      url: directUrl,
+      source: 'direct',
+      confidence: 0.95
+    })
+  }
+
+  const queries = buildQueries(name, location, birthYear)
+  let results: any[] = []
+
+  if (env.BRAVE_SEARCH_KEY) {
+    for (const q of queries) {
+      const r = await fetch('https://api.search.brave.com/res/v1/web/search?q=' + encodeURIComponent(q), {
+        headers: { 'Accept': 'application/json', 'X-Subscription-Token': env.BRAVE_SEARCH_KEY }
+      })
+      if (r.ok) {
+        const j = await r.json()
+        const items = (j.web?.results || []).map((x: any) => ({
+          title: x.title, url: x.url, snippet: x.description, image: x.profile?.img || x.thumb || undefined
+        }))
+        results.push(...items)
       }
-    } catch {}
-  }
-
-  const nameParts = fullName.split(/\s+/).filter(Boolean)
-  const first = nameParts[0] || ''
-  const last = nameParts[nameParts.length-1] || ''
-  const middle = nameParts.length>2 ? nameParts.slice(1,-1).join(' ') : ''
-  const nicknames = [first, first.replace(/(.*)ey$/,'$1ie'), first.replace(/(.*)y$/,'$1ie')].filter((v,i,a)=>v && a.indexOf(v)===i)
-
-  // Extract @handles
-  const handle = (hints||'').match(/@([a-z0-9._]+)/i)?.[1]
-  const handleHosts = ['x.com','twitter.com','instagram.com','threads.net','github.com']
-  const guessedUrls = handle ? handleHosts.map(h=>`https://${h}/${handle}`) : []
-
-  const SITES_PRIMARY = ['linkedin.com/in','github.com','x.com','twitter.com','instagram.com','threads.net']
-  const SITES_SECONDARY = ['facebook.com','goodreads.com','steamcommunity.com','spotify.com','youtube.com','pinterest.com','about.me']
-
-  const quoted = `\"${fullName}\"`
-  const disambig = [location, birthYear, employer, school].filter(Boolean).join(' ')
-
-  const queries = [
-    `${quoted} (${SITES_PRIMARY.map(d=>`site:${d}`).join(' OR ')}) ${disambig}`,
-    `${quoted} intitle:${(employer||school||'profile')} (${SITES_PRIMARY.map(d=>`site:${d}`).join(' OR ')}) ${location||''}`,
-    `${first} ${last} (${nicknames.join(' OR ')}) (${SITES_PRIMARY.map(d=>`site:${d}`).join(' OR ')}) ${disambig}`,
-    `${quoted} (${SITES_SECONDARY.map(d=>`site:${d}`).join(' OR ')}) ${disambig}`
-  ]
-
-  const results:any[] = []
-
-  // Try guessed handle URLs first
-  for (const u of guessedUrls){
-    try { const r = await fetch(u, { method:'HEAD' }); if (r.status<400) results.push({ title: `${first} ${last} (handle)`, url: u, site: new URL(u).hostname.replace('www.',''), snippet: 'From handle', image: undefined }) } catch {}
-  }
-
-  for (const q of queries){
-    const url = new URL('https://www.googleapis.com/customsearch/v1')
-    url.searchParams.set('key', key); url.searchParams.set('cx', cx); url.searchParams.set('q', q); url.searchParams.set('num','10')
-    const r = await fetch(url.toString()); if (!r.ok) continue
-    const j = await r.json()
-    for (const it of (j.items||[])) {
-      results.push({ title: it.title, url: it.link, site: new URL(it.link).hostname.replace('www.',''), snippet: it.snippet, image: it.pagemap?.cse_image?.[0]?.src || it.pagemap?.thumbnail?.[0]?.src })
+    }
+  } else if (env.GOOGLE_CSE_KEY && env.GOOGLE_CSE_ID) {
+    for (const q of queries) {
+      const u = new URL('https://customsearch.googleapis.com/customsearch/v1')
+      u.searchParams.set('key', env.GOOGLE_CSE_KEY)
+      u.searchParams.set('cx', env.GOOGLE_CSE_ID)
+      u.searchParams.set('q', q)
+      const r = await fetch(u.toString())
+      if (r.ok) {
+        const j = await r.json()
+        const items = (j.items || []).map((x: any) => ({
+          title: x.title, url: x.link, snippet: x.snippet, image: x.pagemap?.cse_thumbnail?.[0]?.src
+        }))
+        results.push(...items)
+      }
     }
   }
 
-  const tokens = [fullName, location, birthYear, employer, school].filter(Boolean).join(' ').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
-  function priRank(host:string){ if (host.includes('linkedin.com')) return 3; if (host.includes('github.com')) return 2.5; if (host.includes('x.com')||host.includes('twitter.com')||host.includes('instagram.com')) return 2; return 1 }
-  function scoreRow(r:any){
-    const text = `${r.title} ${r.snippet}`.toLowerCase()
-    let s = 0
-    for (const t of tokens) if (text.includes(t)) s += 1
-    if (location && text.includes((location||'').toLowerCase())) s += 1.5
-    s += priRank(r.site)
-    return Math.min(1, s/10)
+  // Consolidate & score
+  const seen = new Set<string>()
+  for (const it of results) {
+    if (!it.url || seen.has(it.url)) continue
+    seen.add(it.url)
+    const nameMatch = scoreNameMatch(name, it.title || '')
+    const locMatch = location ? scoreLocation(location, (it.snippet || '') + ' ' + it.title) : 0
+    const conf = Math.min(0.98, 0.2 + 0.6*nameMatch + 0.2*locMatch)
+    candidates.push({
+      id: it.url,
+      name: it.title?.split('|')[0]?.trim() || name,
+      url: it.url,
+      source: env.BRAVE_SEARCH_KEY ? 'brave' : 'google',
+      snippet: it.snippet,
+      image: it.image,
+      locationHint: locMatch > 0.3 ? location : undefined,
+      confidence: conf
+    })
   }
 
-  const dedup = new Map<string, any>()
-  for (const r of results){ const k = r.url.split('?')[0]; if (!dedup.has(k)) dedup.set(k, r) }
+  // Dedup by domain preference for social profiles
+  const prioritized = candidates.sort((a,b)=>b.confidence - a.confidence).filter((c, idx, arr) => {
+    return arr.findIndex(x => new URL(x.url).hostname === new URL(c.url).hostname) === idx
+  }).slice(0, 12)
 
-  const hits = [...dedup.values()].map(h=>({...h, score: scoreRow(h)})).sort((a,b)=>b.score-a.score).slice(0,8)
-  return json({ hits, needMoreHints: (hits[0]?.score || 0) < 0.6 })
+  return new Response(JSON.stringify(prioritized), { headers: { 'content-type': 'application/json' } })
+}
 
-  function json(obj:any){ return new Response(JSON.stringify(obj), { headers:{'Content-Type':'application/json'} }) }
+function buildQueries(name: string, location?: string, birthYear?: string) {
+  const basics = [
+    `${name} linkedin`,
+    `${name} instagram`,
+    `${name} twitter`,
+    `${name} github`,
+    `${name} steam`,
+    `${name} strava`,
+    `${name} goodreads`,
+    `${name} site:about.me`,
+  ]
+  if (location) basics.push(`${name} ${location}`)
+  if (birthYear) basics.push(`${name} born ${birthYear}`)
+  return basics
+}
+
+function scoreNameMatch(queryName: string, title: string) {
+  const q = queryName.toLowerCase().split(/\s+/).filter(Boolean)
+  const t = title.toLowerCase()
+  if (q.length === 0) return 0
+  let m = 0
+  for (const part of q) if (t.includes(part)) m++
+  return m / q.length
+}
+
+function scoreLocation(loc: string, text: string) {
+  return text.toLowerCase().includes(loc.toLowerCase()) ? 1 : 0
 }
