@@ -201,7 +201,7 @@ export function recommendGifts(ctx: GiftRuleContext): { ideas: GiftIdea[], evide
     if (item.priceHint) {
       const nums = item.priceHint.match(/\d+/g)?.map(Number) || []
       if (nums.length === 1) priceOk = (nums[0] >= min && nums[0] <= max)
-      if (nums.length >= 2) priceOk = (Math.max(...nums) >= min && Math.min(*nums) <= max)
+      if (nums.length >= 2) priceOk = (Math.max(...nums) >= min && Math.min(...nums) <= max)
     }
 
     if (!priceOk) return null

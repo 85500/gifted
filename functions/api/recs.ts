@@ -19,7 +19,8 @@ export const onRequestPost: PagesFunction = async ({ request }) => {
     tags: it.tags,
     reason: it.reasonTmpl || 'Good fit based on signals',
     evidence,
-    score: it.weight || 1
+    // prefer the computed score if present
+    score: (it as any).score ?? it.weight ?? 1
   }))
 
   return new Response(JSON.stringify(list), { headers: { 'content-type': 'application/json' } })
