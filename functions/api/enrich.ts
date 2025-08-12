@@ -1,9 +1,5 @@
-/**
- * GET /api/enrich?url=...
- * Fetches the page, extracts OG/Twitter meta + links; infers signals.
- */
-import { extractMeta, inferSignals } from './_util'
 import type { EnrichedProfile } from '../../src/types'
+import { fetchHtml, extractMeta, inferSignals, inferOwnsAndNoGos } from './_util'
 
 export const onRequestGet: PagesFunction = async ({ request }) => {
   const { searchParams } = new URL(request.url)
@@ -11,18 +7,21 @@ export const onRequestGet: PagesFunction = async ({ request }) => {
   if (!url) return new Response('[]', { headers: { 'content-type': 'application/json' } })
 
   try {
-    const r = await fetch(url, { headers: { 'accept': 'text/html,*/*' } })
-    const html = await r.text()
+    const html = await fetchHtml(url)
     const meta = extractMeta(html, url)
     const signals = inferSignals(meta)
+    const { owns, nogos } = inferOwnsAndNoGos(meta, signals)
+
     const payload: EnrichedProfile = {
       url,
       title: meta.title,
       description: meta.description,
       image: meta.image,
       textSample: meta.textSample,
-      links: meta.links,
-      signals
+      links: meta.links.concat(meta.sameAs),
+      signals,
+      owns,
+      nogos
     }
     return new Response(JSON.stringify(payload), { headers: { 'content-type': 'application/json' } })
   } catch (e: any) {

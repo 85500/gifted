@@ -1,33 +1,21 @@
-# Gifted v2 (evidence-driven)
+# Gifted Auto (v2.1)
 
-This iteration focuses on **two things** you asked for:
-1) **Find the *right* person** reliably (stronger identity resolution).
-2) **Stop generic lists** — only show gifts justified by real signals (and avoid what they won’t use).
+**Fixes your three blockers:**
+- Finds the **right person** with cross-link clustering (JSON-LD `sameAs`, repeated handles, domain overlap). Auto-picks when confidence ≥ 0.8.
+- **No gift cards** (they earn $0) — catalog is accessory-first and affiliateable.
+- **Zero manual inputs** — we infer platforms, hobbies, and even rough "owns/no-gos" from meta, text sample, and links.
 
-## What changed
-- Candidate picker with images + snippets (LinkedIn/Instagram/X/Steam/etc prioritized).
-- Optional **direct URL** field — paste a profile and skip search.
-- Server-side enrichment that scrapes **OG/Twitter meta + outlinks** and infers signals (ecosystem, platforms, hobbies).
-- **Personalize step**: budget, no-gos, “already own,” and extra likes.
-- **Rule-based recommender** ties items to signals and **excludes** platform mismatches (no Xbox controller for a PS5 person).
-- Light diversity + per-signal caps to avoid same-y lists.
+## How it works
+1) `/api/search-identities` (Brave or Google CSE) runs multiple targeted queries, crawls top results, extracts JSON-LD Person + `sameAs` + handles. It clusters across domains to boost identity confidence and **auto-picks** if confident.
+2) `/api/enrich` fetches the chosen profile page, extracts OG/Twitter meta + links + JSON-LD, and infers signals (Apple/Android, PS/Xbox/Switch/PC, running, photography, coffee, reading, techie). It also infers **owns**/**no-gos** heuristically.
+3) `/api/recs` uses a rule engine that **requires platform matches** and avoids mismatches. It never suggests gift cards, focuses on **accessories** that complement detected ecosystems, and uses your `AFFILIATE_TAG` to build Amazon search URLs.
 
-## Deploy notes (Cloudflare Pages)
-- Functions live under `/functions/api/*` (Pages Functions).
-- Set one of these in your Pages project **Environment Variables**:
-  - `BRAVE_SEARCH_KEY` (preferred) — Brave Web Search API key.
-  - or `GOOGLE_CSE_KEY` + `GOOGLE_CSE_ID` — Google Programmable Search API.
-- Build command: `npm run build`
-- Output dir: `dist`
+## Cloudflare Pages
+- Build: `npm run build` • Output dir: `dist`
+- Set environment variables:
+  - `BRAVE_SEARCH_KEY` (recommended) **or** `GOOGLE_CSE_KEY` + `GOOGLE_CSE_ID`
+  - `AFFILIATE_TAG` (your Amazon Associate tag)
 
-## Local dev
-```bash
-npm i
-npm run dev
-```
-
-## Roadmap (fast wins)
-- Add more collectors: Steam profile parse (public games), Goodreads shelves, Strava stats.
-- Surface “Not recommended because…” per item (transparency).
-- Add small cold-start questionnaire for gift giver when signals are weak.
-- Expand catalog + plug in Amazon PA-API if you have keys.
+## Notes
+- If auto confidence < 0.8, the UI shows top candidates so you can click the right one (still faster).
+- The rule engine is extendable — add more domains/collectors and catalog entries as needed.

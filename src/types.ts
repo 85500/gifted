@@ -5,6 +5,8 @@ export type CandidateProfile = {
   source: 'brave' | 'google' | 'direct'
   snippet?: string
   image?: string
+  handles?: string[]
+  sameAs?: string[]
   locationHint?: string
   confidence: number
 }
@@ -16,15 +18,9 @@ export type EnrichedProfile = {
   image?: string
   links: string[]
   textSample?: string
-  signals: Record<string, number>  // e.g., { 'ecosystem.apple': 0.8, 'gaming.playstation': 0.7 }
-}
-
-export type PersonalizeOptions = {
-  minPrice?: number
-  maxPrice?: number
-  knownNoGos?: string[]     // e.g., ['xbox', 'scented']
-  knownOwns?: string[]      // e.g., ['playstation5', 'iphone15pro']
-  extraLikes?: string[]     // free text tags
+  signals: Record<string, number>
+  owns: string[]
+  nogos: string[]
 }
 
 export type Recommendation = {

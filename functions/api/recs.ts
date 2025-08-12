@@ -1,14 +1,14 @@
-/**
- * POST /api/recs
- * { profile: EnrichedProfile, prefs: PersonalizeOptions }
- * Runs rule engine to produce curated list with evidence.
- */
-import type { EnrichedProfile } from '../../src/types'
 import { recommendGifts } from './_util'
+import type { EnrichedProfile } from '../../src/types'
 
-export const onRequestPost: PagesFunction = async ({ request }) => {
-  const body = await request.json() as { profile: EnrichedProfile, prefs: any }
-  const { ideas, evidence } = recommendGifts({ signals: body.profile.signals || {}, prefs: body.prefs || {} })
+export const onRequestPost: PagesFunction<{ AFFILIATE_TAG?: string }> = async ({ request, env }) => {
+  const body = await request.json() as { profile: EnrichedProfile }
+  const { ideas, evidence } = recommendGifts({
+    signals: body.profile.signals || {},
+    owns: body.profile.owns || [],
+    nogos: body.profile.nogos || [],
+    affiliateTag: env.AFFILIATE_TAG
+  })
 
   const list = ideas.map(it => ({
     id: it.id,
@@ -17,9 +17,8 @@ export const onRequestPost: PagesFunction = async ({ request }) => {
     image: it.image,
     priceHint: it.priceHint,
     tags: it.tags,
-    reason: it.reasonTmpl || 'Good fit based on signals',
+    reason: it.reasonTmpl || 'Good fit based on detected signals',
     evidence,
-    // prefer the computed score if present
     score: (it as any).score ?? it.weight ?? 1
   }))
 
