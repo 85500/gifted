@@ -243,7 +243,7 @@ export function recommendGifts(ctx: GiftRuleContext): { ideas: GiftIdea[], evide
 
   const ideas = CATALOG.map(item => {
     // Exclusions: platform mismatch and auto no-gos
-    const excl = (item.excludes || []).some(e => s[e] && s[e] > 0.4) or item.tags.some(t => nogos.has(t))
+    const excl = (item.excludes || []).some(e => s[e] && s[e] > 0.4) || item.tags.some(t => nogos.has(t))
     if (excl) return null
     const reqFail = (item.requires || []).some(r => !s[r] || s[r] < 0.45)
     if (reqFail) return null
